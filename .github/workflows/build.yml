@@ -82,6 +82,14 @@ jobs:
           restore-keys: |
             buildozer-${{ runner.os }}-
 
+      # 缓存里可能留着上一轮 clone 的 p4a(master)与半成品 build 目录,
+      # 不删掉的话 buildozer 不会按 buildozer.spec 里钉的 tag 重新克隆,依旧会踩 CPython 3.14 的坑
+      - name: 清理缓存的 p4a 与中间产物
+        run: |
+          rm -rf ~/.buildozer/android/platform/python-for-android
+          rm -rf ~/.buildozer/android/platform/build-*
+          echo "剩余缓存:"; ls -1 ~/.buildozer/android/platform/ 2>/dev/null || true
+
       - name: 构建 debug APK
         env:
           # 非交互环境:关闭 gradle 守护进程,内存调大一点,避免 OOM 编译中断
