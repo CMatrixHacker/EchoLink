@@ -32,3 +32,6 @@ Thumbs.db
 
 # 工作区内部数据
 .workbuddy/
+
+# 本地冒烟测试目录(含密钥与样本文件)
+.smoke/
