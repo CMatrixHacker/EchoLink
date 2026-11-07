@@ -180,14 +180,15 @@ buildozer -v android release
 
 | 现象 | 原因 | 处理 |
 | --- | --- | --- |
-| `EchoLink-GUI.exe` 提示缺少 tkinter | 用不带 tkinter 的 Python 构建 | 换解释器重新构建,或用 `--python` 指定 |
+| Actions 日志里刷出 "Android Software Development Kit License Agreement" | 这是 sdkmanager 在装 SDK 前打印的许可全文,**不是报错** | 不用管,`android.accept_sdk_license = True` 会自动应答;首次构建约 20–40 分钟 |
+| `EchoLink.exe` 提示缺少 PySide6 | 构建机没装 PySide6 | `pip install ".[gui]"`,CI 已按这个装 |
 | exe 里调音量报 `ModuleNotFoundError: pycaw` | spec 的 hiddenimports 被改少了 | 恢复 `packaging/echolink.spec` 里的 HIDDEN 列表 |
-| exe 启动慢 1~2 秒 | onefile 要解压 | 改 onedir,或接受它 |
+| exe 启动慢 1~2 秒 | onefile 要解压 | 控制台版是 onefile;窗口版已是 onedir,启动快 |
 | 中文在管道里乱码 | Windows 重定向默认用 cp936 | 已在 `configure_stdio()` 里处理:非 tty 时强制 UTF-8 |
 | `buildozer: command not found` | `~/.local/bin` 不在 PATH | `export PATH="$HOME/.local/bin:$PATH"` |
 | buildozer 卡在下载 NDK | 网络 | 挂代理,或把 SDK/NDK 手动放进 `~/.buildozer/` |
 | APK 装不上,提示解析包错误 | 架构不匹配 | 确认 `android.archs` 含 `arm64-v8a` |
-| GitHub Actions 里 APK 构建失败 | 缓存/SDK 许可 | 看日志;`buildozer.spec` 已设 `android.accept_sdk_license = True` |
+| GitHub Actions 里 APK 构建失败 | 缓存/SDK 依赖缺失 | 看日志;workflow 已固定 `ubuntu-22.04`,并用 `yes` 自动应答许可 |
 
 ---
 
@@ -196,9 +197,10 @@ buildozer -v android release
 本机 Windows 构建结果:
 
 ```
--rwxr-xr-x  15M  dist/echolink.exe
--rwxr-xr-x  15M  dist/EchoLink-GUI.exe
+15M   dist/echolink.exe              控制台版(onefile)
+整目录 dist/EchoLink/EchoLink.exe    窗口版(onedir,PySide6)
 ```
+
 
 验证过:exe 服务端 + exe 客户端跑通 ping/文件/截图/音量(frozen 状态下 pycaw 正常),
 窗口版能起窗口(标题「EchoLink 控制台」)。APK 未在本机构建——本机 `wsl.exe` 被 WorkBuddy

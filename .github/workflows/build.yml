@@ -1,6 +1,6 @@
 name: build
 
-# 推 tag 或手动触发时,在云端同时产出 Windows exe 与 Android APK。
+# 推 tag 或手动触发时,在云端同时产出 Windows 可执行文件与 Android APK。
 # 本地不用装 Linux、也不用装 Android SDK —— 直接下 artifact 即可。
 on:
   push:
@@ -11,60 +11,84 @@ jobs:
   windows:
     name: Windows exe
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
+      # 窗口版要 PySide6,命令行版要 pycaw/comtypes/pyserial;PyInstaller 负责打包
       - name: 安装依赖
         run: |
           python -m pip install --upgrade pip
-          python -m pip install . pyinstaller pycaw comtypes pyserial
+          python -m pip install ".[windows,gui]" pyinstaller
 
       - name: 构建
         run: python packaging/build_windows.py
+
+      - name: 打包窗口版目录
+        run: Compress-Archive -Path dist/EchoLink/* -DestinationPath dist/EchoLink-Windows.zip -Force
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: echolink-windows
-          path: dist/*.exe
+          path: |
+            dist/echolink.exe
+            dist/EchoLink-Windows.zip
           if-no-files-found: error
 
   android:
     name: Android APK
-    runs-on: ubuntu-latest
+    # 固定在 22.04:24.04 上 libncurses5-dev / libtinfo5 已移除,apt 那步会直接失败
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
 
       - name: 安装系统依赖
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            git zip unzip openjdk-17-jdk autoconf libtool pkg-config \
-            zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
+            git zip unzip openjdk-17-jdk autoconf automake libtool pkg-config \
+            zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev libltdl-dev ccache
 
       - name: 安装 buildozer
         run: |
           python -m pip install --upgrade pip
-          python -m pip install buildozer cython==0.29.36
+          # buildozer 1.6 与当前 python-for-android 是一对;Cython 必须留 0.29.x(多数 recipe 不兼容 3.x)
+          python -m pip install "buildozer==1.6.0" "cython==0.29.37" virtualenv
 
-      - name: 缓存 SDK/NDK
+      # SDK / NDK 体积大(>2GB),缓存命中能让二次构建从 40 分钟降到 10 分钟以内
+      - name: 缓存 SDK / NDK / Gradle
         uses: actions/cache@v4
         with:
           path: |
             ~/.buildozer
             ~/.gradle
+            ~/.cache/pip
           key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-${{ runner.os }}-
 
       - name: 构建 debug APK
-        run: buildozer -v android debug
+        env:
+          # 非交互环境:关闭 gradle 守护进程,内存调大一点,避免 OOM 编译中断
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Xmx4096m"
+        run: |
+          # 首次会下载 Android SDK 并打印许可协议全文,`yes` 保证任何 y/N 询问都被自动接受
+          yes | buildozer -v android debug
+          echo "---- APK ----"
+          ls -lh bin/
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
@@ -72,3 +96,13 @@ jobs:
           name: echolink-android
           path: bin/*.apk
           if-no-files-found: error
+
+      # 失败时把 buildozer 的完整日志单独存一份,方便排查(默认日志会被截断)
+      - name: 失败时上传构建日志
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildozer-log
+          path: |
+            .buildozer/android/platform/build-*/build.log
+          if-no-files-found: ignore

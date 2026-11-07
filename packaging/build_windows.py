@@ -133,11 +133,25 @@ def build(python: str) -> int:
         return code
 
     print("\n产物:")
-    for name in ("echolink.exe", "EchoLink-GUI.exe"):
-        path = os.path.join(DIST, name)
+    # 控制台版 onefile: dist/echolink.exe
+    # 窗口版 onedir : dist/EchoLink/EchoLink.exe(整目录才是完整程序)
+    targets = [
+        os.path.join(DIST, "echolink.exe"),
+        os.path.join(DIST, "EchoLink", "EchoLink.exe"),
+    ]
+    for path in targets:
         if os.path.exists(path):
-            size = os.path.getsize(path) / (1024 * 1024)
-            print(f"  {path}  ({size:.1f} MB)")
+            if path.endswith("echolink.exe"):
+                size = os.path.getsize(path) / (1024 * 1024)
+                print(f"  {path}  ({size:.1f} MB)")
+            else:
+                folder = os.path.dirname(path)
+                total = sum(
+                    os.path.getsize(os.path.join(root, f))
+                    for root, _, files in os.walk(folder)
+                    for f in files
+                )
+                print(f"  {path}  (整目录 {total / (1024 * 1024):.1f} MB)")
         else:
             print(f"  {path}  [缺失]")
             code = 1
