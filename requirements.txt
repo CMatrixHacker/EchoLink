@@ -1,0 +1,12 @@
+# 运行时无强制第三方依赖（协议、服务、CLI 全部使用标准库）
+# 以下为可选增强，按需安装：
+
+# 蓝牙串口（Windows 端的蓝牙 SPP 虚拟串口）
+pyserial>=3.5
+
+# Windows 精确音量/静音控制（缺失时自动退化为系统静音快捷键）
+pycaw>=20240210; sys_platform == "win32"
+
+# 安卓客户端界面
+kivy>=2.3.0
+pyjnius>=1.6.1; sys_platform == "android"

@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 本地配置与运行时数据（含密钥，切勿提交）
+.echolink/
+*secret*
+server.local.json
+*.log
+logs/
+
+# 安卓打包产物
+bin/
+.buildozer/
+*.apk
+*.aab
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# 工作区内部数据
+.workbuddy/

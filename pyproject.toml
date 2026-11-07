@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "echolink"
+version = "1.0.0"
+description = "以电脑为中心的手机/PC 互联工具:蓝牙或局域网连接,远程浏览文件、控制音量与电源"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "EchoLink" }]
+keywords = ["bluetooth", "remote", "file-transfer", "windows", "android"]
+dependencies = []
+
+[project.optional-dependencies]
+bluetooth = ["pyserial>=3.5"]
+windows = ["pycaw>=20240210; sys_platform == 'win32'"]
+android = ["kivy>=2.3.0", "pyjnius>=1.6.1; sys_platform == 'android'"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+echolink = "echolink.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["echolink*"]
+
+[tool.setuptools.package-data]
+"echolink.client.android" = ["*.kv"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
