@@ -26,8 +26,15 @@ android.permissions = INTERNET,BLUETOOTH,BLUETOOTH_ADMIN,BLUETOOTH_CONNECT,BLUET
 android.api = 33
 android.minapi = 23
 android.archs = arm64-v8a,armeabi-v7a
+# NDK 与 p4a/tag 配套(25b = clang 14,python 3.11 组合经过大量项目验证)
+android.ndk = 25b
 android.allow_backup = True
 android.accept_sdk_license = True
+
+# python-for-android 不追 master(master 已跟进 CPython 3.14,remote_debugging.c
+# 在 NDK 下编译报 implicit-function-declaration)。钉在稳定发布 tag:
+# python 3.11.5 + kivy 2.3.1,这是官方长期验证的组合
+p4a.branch = v2024.01.21
 
 # 竖屏 + 深色标题栏
 android.presplash_color = #101418

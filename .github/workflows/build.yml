@@ -52,7 +52,8 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          # buildozer 1.5 + p4a v2024.01.21(python 3.11 宿主)是经过大量项目验证的组合
+          python-version: "3.11"
           cache: pip
 
       - name: 安装系统依赖
@@ -65,8 +66,9 @@ jobs:
       - name: 安装 buildozer
         run: |
           python -m pip install --upgrade pip
-          # buildozer 1.6 与当前 python-for-android 是一对;Cython 必须留 0.29.x(多数 recipe 不兼容 3.x)
-          python -m pip install "buildozer==1.6.0" "cython==0.29.37" virtualenv
+          # buildozer 1.5.0 与 buildozer.spec 里钉死的 p4a.branch=v2024.01.21 同期配套;
+          # Cython 必须留 0.29.x(多数 recipe 不兼容 3.x)
+          python -m pip install "buildozer==1.5.0" "cython==0.29.36" virtualenv
 
       # SDK / NDK 体积大(>2GB),缓存命中能让二次构建从 40 分钟降到 10 分钟以内
       - name: 缓存 SDK / NDK / Gradle
