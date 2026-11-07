@@ -38,6 +38,9 @@ _kernel32 = _load("kernel32")
 _gdi32 = _load("gdi32")
 _powrprof = _load("powrprof")
 
+# 每个线程各自记录 COM 是否已初始化(Core Audio 需要)
+_COM_STATE = threading.local()
+
 # ---- 常量 ----
 VK_VOLUME_MUTE = 0xAD
 VK_VOLUME_DOWN = 0xAE
@@ -287,8 +290,25 @@ class WindowsBackend(SystemBackend):
 
     # ================= 声音 =================
     @staticmethod
+    def _ensure_com() -> None:
+        """Core Audio 是 COM 接口,每个工作线程都需要初始化一次。"""
+        import threading
+
+        local = _COM_STATE
+        if getattr(local, "ready", False):
+            return
+        try:
+            import comtypes  # type: ignore
+
+            comtypes.CoInitialize()
+        except Exception:  # pragma: no cover - 已经初始化过
+            pass
+        local.ready = True
+
+    @staticmethod
     def _endpoint_volume():
         """取 Core Audio 默认输出设备的音量接口;不可用时返回 None。"""
+        WindowsBackend._ensure_com()
         try:
             from pycaw.pycaw import AudioUtilities  # type: ignore
 

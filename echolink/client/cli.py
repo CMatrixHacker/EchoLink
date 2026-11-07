@@ -108,7 +108,10 @@ def cmd_info(client: EchoLinkClient, args: argparse.Namespace) -> int:
     battery = data.get("battery")
     if battery:
         print(f"电池     : {battery.get('percent')}% {'充电中' if battery.get('plugged') else '未充电'}")
-    print(f"音量     : {audio.get('level')}% {'(静音)' if audio.get('muted') else ''}")
+    if audio.get("level") is None:
+        print("音量     : 未知(未安装 pycaw 或当前平台不支持读取)")
+    else:
+        print(f"音量     : {audio.get('level')}% {'(静音)' if audio.get('muted') else ''}")
     print("可访问目录:")
     for root in data.get("roots") or []:
         print(f"  - {root.get('label')}: {root.get('path')}")

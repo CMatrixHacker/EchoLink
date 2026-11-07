@@ -97,7 +97,7 @@ def cmd_server(args: argparse.Namespace) -> int:
     if args.init or not os.path.exists(path):
         config = default_config(path)
         if args.root:
-            config.roots = list(args.root)
+            config.roots = [os.path.abspath(item) for item in args.root]
         if args.host:
             config.tcp.host = args.host
         if args.port:
@@ -132,7 +132,7 @@ def cmd_server(args: argparse.Namespace) -> int:
     if args.backend:
         config.backend = args.backend
     if args.root:
-        config.roots = list(args.root)
+        config.roots = [os.path.abspath(item) for item in args.root]
     if args.audit is not None:
         config.audit_file = args.audit
 
@@ -173,7 +173,11 @@ def cmd_server(args: argparse.Namespace) -> int:
 def cmd_cli(args: argparse.Namespace) -> int:
     from echolink.client import cli as cli_module
 
-    return cli_module.main(args.rest)
+    rest = list(args.rest or [])
+    if not rest:
+        cli_module.build_parser().print_help()
+        return 0
+    return cli_module.main(rest)
 
 
 def cmd_gui(args: argparse.Namespace) -> int:
@@ -186,7 +190,17 @@ def cmd_gui(args: argparse.Namespace) -> int:
             secret = read_secret_file(default_secret)
     try:
         from echolink.client.gui import main as gui_main
-    except Exception as exc:  # noqa: BLE001 - 无 tkinter 环境
+    except ModuleNotFoundError as exc:
+        if exc.name == "tkinter":
+            print("当前 Python 未包含 tkinter,无法启动图形界面。", file=sys.stderr)
+            print(f"  - 当前解释器: {sys.executable}", file=sys.stderr)
+            print("  - Windows 请安装 python.org 官方版(自带 tkinter),或用带 tkinter 的解释器运行:", file=sys.stderr)
+            print('      py -3 -m echolink gui -t <地址> -s <密钥>', file=sys.stderr)
+            print("  - 不装图形界面也能用: `echolink cli <命令>` 覆盖全部功能。", file=sys.stderr)
+            return 1
+        print(f"无法启动图形界面: {exc}", file=sys.stderr)
+        return 1
+    except Exception as exc:  # noqa: BLE001 - 其他导入问题
         print(f"无法启动图形界面: {exc}", file=sys.stderr)
         return 1
     gui_main(target=args.target, secret=secret)
@@ -290,9 +304,49 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _build_global_parser() -> argparse.ArgumentParser:
+    """仅解析全局选项的小解析器,用于 ``echolink [全局选项] cli …`` 的前半段。"""
+    parser = argparse.ArgumentParser(prog="echolink", add_help=False)
+    parser.add_argument("-V", "--version", action="version", version=f"EchoLink {__version__}")
+    parser.add_argument("--log-level", default="INFO", help="日志级别(DEBUG/INFO/WARNING/ERROR)")
+    return parser
+
+
+def _split_cli_token(raw: List[str]):
+    """定位 ``cli`` 子命令,返回 (前半段, 交给命令行客户端的后半段)。
+
+    ``argparse.REMAINDER`` 在子解析器里遇到 ``-t`` 这类选项时会失效,
+    因此 ``echolink cli …`` 的参数改为在进入 argparse 之前原样截取。
+    """
+    for index, token in enumerate(raw):
+        if token != "cli":
+            continue
+        if index and raw[index - 1] == "--log-level":  # 是某个选项的取值,不是子命令
+            continue
+        return raw[:index], raw[index + 1 :]
+    return None
+
+
 def main(argv: Optional[List[str]] = None) -> int:
+    raw = list(sys.argv[1:] if argv is None else argv)
+
+    split = _split_cli_token(raw)
+    if split is not None:
+        head, tail = split
+        globals_args, unknown = _build_global_parser().parse_known_args(head)
+        if unknown:
+            print(f"未知参数: {' '.join(unknown)}", file=sys.stderr)
+            return 2
+        setup_logging(globals_args.log_level)
+        from echolink.client import cli as cli_module
+
+        if not tail:
+            cli_module.build_parser().print_help()
+            return 0
+        return cli_module.main(tail)
+
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(raw)
     setup_logging(getattr(args, "log_level", "INFO"))
     if not getattr(args, "command", None):
         parser.print_help()
