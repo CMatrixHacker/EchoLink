@@ -1,5 +1,7 @@
 # 打包 Android App
 
+> Windows 端打包、云端自动构建、签名与版本号管理的完整说明见 [build.md](build.md)。
+
 ## 一句话结论
 
 Windows 上不能直接打包。用 **WSL2 里的 Ubuntu** 或任意 Linux 机器执行 `buildozer android debug`,

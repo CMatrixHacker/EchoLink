@@ -40,6 +40,24 @@ def setup_logging(level: str = "INFO") -> None:
     )
 
 
+def configure_stdio() -> None:
+    """让**重定向**输出统一成 UTF-8,交互式控制台保持系统默认。
+
+    Windows 下把输出接到文件/管道时,Python 会用 locale 编码(cp936),
+    于是中文在其他工具里就成了乱码;而直接在控制台看时用的是 Unicode API,
+    保持原样才不会出问题——所以按 ``isatty`` 区分。
+    """
+
+    for stream in (sys.stdout, sys.stderr):
+        if stream is None or not hasattr(stream, "reconfigure"):
+            continue
+        try:
+            if not stream.isatty():
+                stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+        except (OSError, ValueError):  # pragma: no cover - 特殊终端
+            pass
+
+
 def _mask(secret: str) -> str:
     if not secret:
         return "(未设置)"
@@ -328,6 +346,7 @@ def _split_cli_token(raw: List[str]):
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    configure_stdio()
     raw = list(sys.argv[1:] if argv is None else argv)
 
     split = _split_cli_token(raw)

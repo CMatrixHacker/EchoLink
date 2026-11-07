@@ -1,0 +1,6 @@
+# Windows 打包所需(构建机上安装)
+#   python -m pip install -r packaging/requirements-build.txt
+pyinstaller>=6.0
+pycaw>=20240210
+comtypes>=1.2
+pyserial>=3.5

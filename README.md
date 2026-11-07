@@ -72,6 +72,16 @@ buildozer -v android debug          # 产出 bin/echolink-1.0.0-debug.apk
 
 详见 [docs/android.md](docs/android.md)。
 
+## 打包成可执行文件
+
+| 目标 | 命令 | 产物 |
+| --- | --- | --- |
+| Windows | `python packaging/build_windows.py` | `dist/echolink.exe`(控制台)、`dist/EchoLink-GUI.exe`(窗口),各约 15 MB 单文件 |
+| Android | `bash packaging/build_android.sh`,或推到 GitHub 用内置 Actions | `bin/*.apk` |
+
+APK 必须在 Linux/WSL2 上构建(本仓库自带 GitHub Actions 工作流,推 tag 即出包)。
+完整步骤、签名、常见坑见 [docs/build.md](docs/build.md)。
+
 ## 命令一览
 
 | 分类 | 命令 | 说明 |
@@ -113,6 +123,7 @@ buildozer -v android debug          # 产出 bin/echolink-1.0.0-debug.apk
 
 ## 文档
 
+- [打包与分发](docs/build.md) —— Windows exe / Android APK 的完整构建指南
 - [协议规范](docs/protocol.md) —— 帧格式、握手时序、错误码
 - [架构说明](docs/architecture.md) —— 模块划分与线程模型
 - [蓝牙配对](docs/bluetooth.md) —— Windows 与 Android 的配对步骤与排错
@@ -135,8 +146,10 @@ echolink/
   server/     会话、命令注册表、分块传输、审计、配置、三个命令模块
   platform/   Win32(ctypes) / 通用 POSIX / 空实现后端
   client/     Python API、CLI、Tkinter GUI、Kivy 安卓界面
+packaging/    PyInstaller 配置、Windows/Android 构建脚本
 main.py       Android 打包入口
 buildozer.spec
+.github/      CI:推 tag 自动产出 exe 与 APK
 tests/
 ```
 
