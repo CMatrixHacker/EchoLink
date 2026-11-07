@@ -17,9 +17,9 @@ from typing import Any, Callable, Dict, List, Optional
 
 from kivy.app import App
 from kivy.clock import Clock
+from kivy.core.window import Window
 from kivy.metrics import dp
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.image import Image
 from kivy.uix.label import Label
@@ -35,9 +35,16 @@ from echolink.client.core import EchoLinkClient, join_remote
 from echolink.common.auth import read_secret_file
 from echolink.common.errors import RemoteError
 
-ACCENT = (0.15, 0.55, 0.85, 1)
-DANGER = (0.85, 0.28, 0.28, 1)
-MUTED = (0.55, 0.55, 0.58, 1)
+from echolink.client.android.theme import (  # noqa: F401 - Button 即 NeonButton
+    ACCENT,
+    DANGER,
+    GradientBackground,
+    MUTED,
+    OK,
+    NeonButton as Button,
+    apply_theme,
+    stagger_in,
+)
 
 
 def human_size(value: Optional[int]) -> str:
@@ -83,6 +90,7 @@ class EchoLinkApp(App):
     # ==================== 生命周期 ====================
     def build(self):
         request_android_permissions()
+        apply_theme()
         self.settings = self._load_settings()
         self.client: Optional[EchoLinkClient] = None
         self.cwd = ""
@@ -91,7 +99,12 @@ class EchoLinkApp(App):
         self.manager = ScreenManager()
         self.manager.add_widget(self._build_connect_screen())
         self.manager.add_widget(self._build_main_screen())
-        return self.manager
+
+        # 极光渐变底 + 漂移色晕,子 Screen 透明叠在上面
+        Window.clearcolor = (0.016, 0.024, 0.051, 1.0)
+        root = GradientBackground()
+        root.add_widget(self.manager)
+        return root
 
     def on_stop(self) -> None:
         if self.client is not None:
@@ -173,7 +186,7 @@ class EchoLinkApp(App):
         row.add_widget(Button(text="从文件导入密钥", on_release=lambda *_: self.import_secret()))
         layout.add_widget(row)
 
-        self.connect_button = Button(text="连接电脑", size_hint_y=None, height=dp(52), background_color=ACCENT)
+        self.connect_button = Button(text="连接电脑", size_hint_y=None, height=dp(52), primary=True)
         self.connect_button.bind(on_release=lambda *_: self.do_connect())
         layout.add_widget(self.connect_button)
 
@@ -453,7 +466,7 @@ class EchoLinkApp(App):
             self.simple_call("操作", func)
 
         buttons.add_widget(Button(text="取消", on_release=lambda *_: popup.dismiss()))
-        yes = Button(text="确定", background_color=DANGER if danger else ACCENT, on_release=proceed)
+        yes = Button(text="确定", danger=danger, primary=not danger, on_release=proceed)
         buttons.add_widget(yes)
         content.add_widget(buttons)
         popup.open()
@@ -495,6 +508,7 @@ class EchoLinkApp(App):
                 )
             for entry in entries:
                 self.file_grid.add_widget(self._entry_button(entry))
+            stagger_in(list(self.file_grid.children)[:24])
             self.log(f"共 {len(entries)} 项")
 
         self.run_task("列出目录", lambda: client.list_dir(path), done)
@@ -530,12 +544,7 @@ class EchoLinkApp(App):
         popup = Popup(title="文件操作", content=content, size_hint=(0.86, 0.6))
 
         def add(label: str, handler: Callable[[], None], danger: bool = False) -> None:
-            button = Button(
-                text=label,
-                size_hint_y=None,
-                height=dp(44),
-                background_color=DANGER if danger else (0.25, 0.45, 0.65, 1),
-            )
+            button = Button(text=label, size_hint_y=None, height=dp(44), danger=danger)
             button.bind(on_release=lambda *_: (popup.dismiss(), handler()))
             content.add_widget(button)
 

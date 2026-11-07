@@ -33,20 +33,20 @@ def _fatal(message: str) -> None:
 def main() -> int:
     _silence_streams()
     try:
-        from echolink.client.gui import main as gui_main
+        from echolink.client.ui.window import main as gui_main
     except ModuleNotFoundError as exc:
-        if exc.name == "tkinter":
-            _fatal("当前 Python 运行环境缺少 tkinter,图形界面不可用。\n\n"
-                   "请改用同目录下的 echolink.exe(命令行版),或重新用带 tkinter 的 Python 打包。")
+        if exc.name in ("PySide6", "shiboken6"):
+            _fatal("当前 Python 运行环境缺少 PySide6,图形界面不可用。\n\n"
+                   "请改用同目录下的 echolink.exe(命令行版),或先 pip install PySide6 再打包。")
             return 1
         _fatal(f"加载界面失败:\n{exc}")
         return 1
     try:
-        gui_main()
+        argv = ["EchoLink"] + [arg for arg in sys.argv[1:] if arg in ("--tray", "--minimized")]
+        return int(gui_main(argv) or 0)
     except Exception:  # noqa: BLE001 - 兜底,避免闪退无提示
         _fatal(f"运行出错:\n{traceback.format_exc(limit=3)}")
         return 1
-    return 0
 
 
 if __name__ == "__main__":

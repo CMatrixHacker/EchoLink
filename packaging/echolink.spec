@@ -1,13 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller 打包配置:一次构建两个单文件 exe。
+"""PyInstaller 打包配置。
 
-    echolink.exe         控制台版 —— server / cli / keygen / ports 全部子命令
-    EchoLink-GUI.exe     窗口版   —— 双击即开的图形控制台
+    echolink.exe         控制台版(onefile) —— server / cli / keygen / autostart 全部子命令
+    EchoLink/            图形控制版(onedir) —— PySide6 科幻界面,启动快,便于做成产品目录
 
 构建:
-    python -m PyInstaller --clean --noconfirm packaging/echolink.spec
-
-注意必须用**带 tkinter 的解释器**构建,否则窗口版会缺 tkinter。
+    python packaging/make_icon.py                 # 首次生成图标
+    python packaging/build_windows.py             # 自动挑解释器并构建
 """
 
 import os
@@ -20,7 +19,12 @@ ICON = os.path.join(ROOT, "packaging", "echolink.ico")
 
 # echolink 内部大量使用"延迟导入"(pycaw / pyserial / 平台后端),
 # 静态分析看不到,必须显式声明,否则打出来的 exe 一用声音就崩。
-HIDDEN = collect_submodules("echolink") + [
+_ALL_ECHOLINK = collect_submodules("echolink")
+# 图形界面包只属于窗口版,控制台版不需要 PySide6(否则 15MB 涨到 55MB)
+UI_MODULES = [m for m in _ALL_ECHOLINK if m.startswith("echolink.client.ui")]
+CLI_HIDDEN = [m for m in _ALL_ECHOLINK if not m.startswith("echolink.client.ui")]
+
+HIDDEN = CLI_HIDDEN + [
     "pycaw",
     "pycaw.pycaw",
     "pycaw.api",
@@ -31,6 +35,7 @@ HIDDEN = collect_submodules("echolink") + [
     "serial.tools.list_ports",
 ]
 HIDDEN += collect_submodules("comtypes")
+GUI_HIDDEN = _ALL_ECHOLINK + [m for m in HIDDEN if not m.startswith("echolink")]
 
 # 桌面版不需要 Kivy / pyjnius / Android 那套,排除掉能显著减小体积
 EXCLUDES = [
@@ -42,24 +47,25 @@ EXCLUDES = [
     "numpy",
     "pandas",
     "matplotlib",
-    "PIL",
     "setuptools",
     "pip",
 ]
+# 控制台版额外排除整套 Qt 与图形界面
+CLI_EXCLUDES = EXCLUDES + ["PySide6", "shiboken6", "echolink.client.ui"]
 
 ICON_OPTS = {"icon": ICON} if os.path.exists(ICON) else {}
 
 
-# ==================== 控制台版 ====================
+# ==================== 控制台版(onefile) ====================
 cli_analysis = Analysis(  # noqa: F821
     [os.path.join(ENTRY_DIR, "entry_cli.py")],
     pathex=[ROOT],
     binaries=[],
     datas=[],
-    hiddenimports=HIDDEN,
+    hiddenimports=CLI_HIDDEN,
     hookspath=[],
     runtime_hooks=[],
-    excludes=EXCLUDES,
+    excludes=CLI_EXCLUDES,
     noarchive=False,
 )
 
@@ -83,16 +89,16 @@ cli_exe = EXE(  # noqa: F821
 )
 
 
-# ==================== 窗口版 ====================
+# ==================== 图形版(onedir,PySide6) ====================
 gui_analysis = Analysis(  # noqa: F821
     [os.path.join(ENTRY_DIR, "entry_gui.py")],
     pathex=[ROOT],
     binaries=[],
     datas=[],
-    hiddenimports=HIDDEN,
+    hiddenimports=GUI_HIDDEN,
     hookspath=[],
     runtime_hooks=[],
-    excludes=[item for item in EXCLUDES if item != "tkinter"],
+    excludes=EXCLUDES + ["tkinter"],
     noarchive=False,
 )
 
@@ -101,16 +107,23 @@ gui_pyz = PYZ(gui_analysis.pure)  # noqa: F821
 gui_exe = EXE(  # noqa: F821
     gui_pyz,
     gui_analysis.scripts,
-    gui_analysis.binaries,
-    gui_analysis.datas,
     [],
-    name="EchoLink-GUI",
+    exclude_binaries=True,
+    name="EchoLink",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
     **ICON_OPTS,
+)
+
+gui_collect = COLLECT(  # noqa: F821
+    gui_exe,
+    gui_analysis.binaries,
+    gui_analysis.datas,
+    strip=False,
+    upx=False,
+    name="EchoLink",
 )

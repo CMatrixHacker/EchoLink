@@ -206,14 +206,19 @@ def cmd_gui(args: argparse.Namespace) -> int:
         default_secret = os.path.join(os.path.expanduser("~"), ".echolink", "secret")
         if os.path.exists(default_secret):
             secret = read_secret_file(default_secret)
+
+    argv = ["echolink-gui"]
+    if args.tray:
+        argv.append("--tray")
+
     try:
-        from echolink.client.gui import main as gui_main
+        from echolink.client.ui.window import main as gui_main
     except ModuleNotFoundError as exc:
-        if exc.name == "tkinter":
-            print("当前 Python 未包含 tkinter,无法启动图形界面。", file=sys.stderr)
+        if exc.name in ("PySide6", "shiboken6"):
+            print("当前 Python 未安装 PySide6,无法启动图形界面。", file=sys.stderr)
             print(f"  - 当前解释器: {sys.executable}", file=sys.stderr)
-            print("  - Windows 请安装 python.org 官方版(自带 tkinter),或用带 tkinter 的解释器运行:", file=sys.stderr)
-            print('      py -3 -m echolink gui -t <地址> -s <密钥>', file=sys.stderr)
+            print("  - 安装: pip install PySide6", file=sys.stderr)
+            print("  - 旧版界面可用: echolink gui-legacy", file=sys.stderr)
             print("  - 不装图形界面也能用: `echolink cli <命令>` 覆盖全部功能。", file=sys.stderr)
             return 1
         print(f"无法启动图形界面: {exc}", file=sys.stderr)
@@ -221,7 +226,62 @@ def cmd_gui(args: argparse.Namespace) -> int:
     except Exception as exc:  # noqa: BLE001 - 其他导入问题
         print(f"无法启动图形界面: {exc}", file=sys.stderr)
         return 1
+
+    if args.target:
+        _write_gui_hint(args.target, secret)
+    return int(gui_main(argv) or 0)
+
+
+def _write_gui_hint(target: str, secret: str) -> None:
+    """把 -t/-s 落盘到界面设置里，界面启动时直接读。"""
+    import json
+
+    path = os.path.join(os.path.expanduser("~"), ".echolink", "client.json")
+    try:
+        data = {}
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as handle:
+                data = json.load(handle) or {}
+        if target:
+            data["target"] = target
+        if secret:
+            data["secret"] = secret
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, ensure_ascii=False, indent=2)
+    except OSError:
+        pass
+
+
+def cmd_gui_legacy(args: argparse.Namespace) -> int:
+    secret = args.secret
+    if args.secret_file:
+        secret = read_secret_file(args.secret_file)
+    try:
+        from echolink.client.gui import main as gui_main
+    except Exception as exc:  # noqa: BLE001
+        print(f"无法启动旧版界面: {exc}", file=sys.stderr)
+        return 1
     gui_main(target=args.target, secret=secret)
+    return 0
+
+
+def cmd_autostart(args: argparse.Namespace) -> int:
+    from echolink.platform import autostart as autostart_mod
+
+    action = args.action
+    if action == "status":
+        info = autostart_mod.status()
+        state = "已开启" if info.get("enabled") else "未开启"
+        print(f"开机自启: {state}")
+        print(f"  位置: {info.get('where')}")
+        if info.get("command"):
+            print(f"  命令: {info.get('command')}")
+        return 0
+    result = autostart_mod.set_enabled(action == "on")
+    print("已开启开机自启" if result.get("enabled") else "已关闭开机自启")
+    if result.get("command"):
+        print(f"  命令: {result['command']}")
     return 0
 
 
@@ -302,11 +362,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_cli.add_argument("rest", nargs=argparse.REMAINDER, help="cli 子命令与参数")
     p_cli.set_defaults(func=cmd_cli)
 
-    p_gui = sub.add_parser("gui", help="桌面图形控制台")
-    p_gui.add_argument("-t", "--target", default="127.0.0.1:8765")
+    p_gui = sub.add_parser("gui", help="桌面图形控制台(科幻界面)")
+    p_gui.add_argument("-t", "--target", default="")
     p_gui.add_argument("-s", "--secret", default="")
     p_gui.add_argument("--secret-file", default="")
+    p_gui.add_argument("--tray", action="store_true", help="启动后直接收进托盘")
     p_gui.set_defaults(func=cmd_gui)
+
+    p_legacy = sub.add_parser("gui-legacy", help="旧版 Tkinter 界面(备用)")
+    p_legacy.add_argument("-t", "--target", default="127.0.0.1:8765")
+    p_legacy.add_argument("-s", "--secret", default="")
+    p_legacy.add_argument("--secret-file", default="")
+    p_legacy.set_defaults(func=cmd_gui_legacy)
+
+    p_auto = sub.add_parser("autostart", help="开机自启开关")
+    p_auto.add_argument("action", choices=["on", "off", "status"])
+    p_auto.set_defaults(func=cmd_autostart)
 
     p_android = sub.add_parser("android", help="启动 Android(Kivy)界面")
     p_android.set_defaults(func=cmd_android)

@@ -4,13 +4,13 @@
 通过**蓝牙**或**局域网**接入,远程浏览/上传/下载文件,并控制系统能力——静音、调音量、锁屏、关机、重启、截屏、剪贴板、进程。
 
 - 纯 Python 实现,协议与传输层解耦:同一套会话逻辑可以跑在 TCP 上,也可以跑在蓝牙串口/RFCOMM 上。
-- 三种客户端:**命令行**(脚本友好)、**Windows 桌面控制台**(Tkinter)、**Android App**(Kivy + buildozer)。
+- 三种客户端:**命令行**(脚本友好)、**Windows 科幻风控制台**(PySide6,托盘常驻 + 开机自启)、**Android App**(Kivy + buildozer)。
 - 37 条命令、预共享密钥挑战应答认证、目录沙箱、全量审计日志。
 
 ```
                  ┌──────────────────────────────┐
    手机 Android  │                              │  Windows 客户端(另一台电脑)
-   (Kivy App)    │       电脑端服务进程          │   (Tkinter / CLI)
+   (Kivy App)    │       电脑端服务进程          │   (GUI / CLI)
         │        │  ┌────────────────────────┐  │        │
         │ 蓝牙   │  │ 会话管理 → 命令注册表   │  │  局域网 │
         └───────►│  │   ↓                    │  │◄───────┘
@@ -56,12 +56,12 @@ echolink cli -t 192.168.1.8:8765 -s <密钥> shell         # 交互式 shell
 ### 3. Windows 桌面控制台
 
 ```bash
-py -3 -m echolink gui -t 192.168.1.8:8765 -s <密钥>
+py -3 -m echolink gui -t 192.168.1.8:8765 -s <密钥>   # 科幻界面,关闭即收进托盘
 ```
 
 左侧浏览电脑文件、双击进入目录、右键下载;右侧一键静音/音量/截屏/锁屏/关机。
 
-> 图形界面依赖 Python 自带的 `tkinter`。如果提示"未包含 tkinter",请改用 python.org 官方安装包的解释器。
+> 图形界面依赖 `pip install PySide6`。打包版(exe)已内置,无需安装。
 
 ### 4. Android App
 
@@ -76,7 +76,7 @@ buildozer -v android debug          # 产出 bin/echolink-1.0.0-debug.apk
 
 | 目标 | 命令 | 产物 |
 | --- | --- | --- |
-| Windows | `python packaging/build_windows.py` | `dist/echolink.exe`(控制台)、`dist/EchoLink-GUI.exe`(窗口),各约 15 MB 单文件 |
+| Windows | `python packaging/build_windows.py` | `dist/echolink.exe`(控制台,15 MB 单文件)、`dist/EchoLink/`(图形控制台,onedir) |
 | Android | `wsl -- bash packaging/build_android_wsl.sh`(一条命令装依赖+构建),或推到 GitHub 用内置 Actions | `dist/*.apk` |
 
 APK 必须在 Linux/WSL2 上构建(本仓库自带 GitHub Actions 工作流,推 tag 即出包)。
@@ -145,7 +145,7 @@ echolink/
   transport/  TCP 服务端/客户端、Windows 蓝牙 SPP、Android RFCOMM
   server/     会话、命令注册表、分块传输、审计、配置、三个命令模块
   platform/   Win32(ctypes) / 通用 POSIX / 空实现后端
-  client/     Python API、CLI、Tkinter GUI、Kivy 安卓界面
+  client/     Python API、CLI、PySide6 控制台、Kivy 安卓界面
 packaging/    PyInstaller 配置、Windows/Android 构建脚本
 main.py       Android 打包入口
 buildozer.spec
