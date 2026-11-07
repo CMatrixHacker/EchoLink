@@ -77,7 +77,7 @@ buildozer -v android debug          # 产出 bin/echolink-1.0.0-debug.apk
 | 目标 | 命令 | 产物 |
 | --- | --- | --- |
 | Windows | `python packaging/build_windows.py` | `dist/echolink.exe`(控制台)、`dist/EchoLink-GUI.exe`(窗口),各约 15 MB 单文件 |
-| Android | `bash packaging/build_android.sh`,或推到 GitHub 用内置 Actions | `bin/*.apk` |
+| Android | `wsl -- bash packaging/build_android_wsl.sh`(一条命令装依赖+构建),或推到 GitHub 用内置 Actions | `dist/*.apk` |
 
 APK 必须在 Linux/WSL2 上构建(本仓库自带 GitHub Actions 工作流,推 tag 即出包)。
 完整步骤、签名、常见坑见 [docs/build.md](docs/build.md)。

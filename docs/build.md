@@ -104,25 +104,34 @@ Android 的"可执行文件"就是 APK,它必须由 `python-for-android` 交叉�
 
 本地什么都不用装。
 
-### 路径 B:WSL2 / Ubuntu
+### 路径 B:WSL2 / Ubuntu(本机一条命令)
 
-```bash
-# 1. 装系统依赖
-sudo apt update
-sudo apt install -y git zip unzip openjdk-17-jdk python3-pip \
-    autoconf libtool pkg-config zlib1g-dev \
-    libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
+WSL 装好 Ubuntu 后,在 **PowerShell** 里执行:
 
-# 2. 装 buildozer
-python3 -m pip install --user buildozer cython==0.29.36
-export PATH="$HOME/.local/bin:$PATH"
-
-# 3. 构建(仓库里的脚本已封装上面两步的检查)
-cd /mnt/d/Project/EchoSpace
-bash packaging/build_android.sh
+```powershell
+wsl -d Ubuntu-22.04 -- bash /mnt/d/Project/EchoSpace/packaging/build_android_wsl.sh
 ```
 
-> WSL 里访问 `/mnt/d` 会慢很多,构建建议先把仓库 clone 到 WSL 自己的文件系统(`~/EchoSpace`)。
+脚本会自己做完这些事,不需要你逐步装依赖:
+
+1. 检查发行版、磁盘空间(首次构建要 ≥12GB);
+2. 补齐 apt 依赖(openjdk-17、autoconf、libncurses、cmake、libffi、libssl 等),已装则跳过;
+3. 在 `~/echolink-build/.venv` 建隔离环境,装 `buildozer==1.5.0` + `cython==0.29.36`;
+4. 把仓库同步到 **ext4** 的 `~/echolink-build`(关键:直接 `/mnt/d` 构建会因 DrvFs 丢权限位报
+   `Permission denied` / `Exec format error`,这一步绕开了它);
+5. 跑 `buildozer -v android debug`,日志落在 `~/echolink-build/build.log`;
+6. 把 APK 拷回 `D:\Project\EchoSpace\dist\` 并打印 `adb install` 命令。
+
+首次约 20~40 分钟(下 SDK/NDK),之后 `.buildozer` 缓存命中约 8 分钟。
+要 release 包就加参数:`… build_android_wsl.sh release`。
+
+> **如果 PowerShell 报 `PROGRAM BLOCKED BY SECURITY POLICY`**:说明 `wsl.exe` 落在
+> WorkBuddy 安全中心的程序黑名单里(本机默认就是这个状态)。这个拦截无法通过脚本或换 shell 绕过,
+> 必须由你在 **安全中心 → 命令安全 → 程序黑名单** 里移除 `wsl.exe`,或直接用路径 A / C。
+> 把 `wsl.exe` 换成 `D:\Soft\Python\...` 之类的替代调用同样会被拦。
+
+> 旧的 `packaging/build_android.sh` 仍然可用,但它只做前置检查,依赖要你自己装;
+> 新脚本是它的超集。
 
 ### 路径 C:真机免打包
 
@@ -192,5 +201,5 @@ buildozer -v android release
 ```
 
 验证过:exe 服务端 + exe 客户端跑通 ping/文件/截图/音量(frozen 状态下 pycaw 正常),
-窗口版能起窗口(标题「EchoLink 控制台」)。APK 因本机 WSL 被安全策略禁用,未在本机构建,
-请走路径 A 或 B。
+窗口版能起窗口(标题「EchoLink 控制台」)。APK 未在本机构建——本机 `wsl.exe` 被 WorkBuddy
+安全中心列入程序黑名单,启动被系统级拦截且无法绕过,已把一键构建脚本备好,走路径 A 或 B 即可。

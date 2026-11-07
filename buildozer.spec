@@ -8,13 +8,14 @@ package.domain = org.echolink
 # 源码根目录(整个仓库),排除掉测试/文档/构建产物
 source.dir = .
 source.include_exts = py,png,jpg,jpeg,kv,atlas,json,txt,ttf
-source.exclude_dirs = tests, docs, .git, .github, .pytest_cache, .smoke, logs, bin, .buildozer, __pycache__
-source.exclude_patterns = *.md, *.spec.bak, server*.json, *secret*
+source.exclude_dirs = tests, docs, .git, .github, .pytest_cache, .smoke, logs, bin, .buildozer, __pycache__, dist, build, packaging, .workbuddy, .venv, venv
+source.exclude_patterns = *.md, *.spec.bak, server*.json, *secret*, build.log
 
 version = 1.0.0
 
 # python3 + kivy 提供界面,pyjnius 提供 android.bluetooth 的 RFCOMM 通道
-requirements = python3,kivy==2.3.0,pyjnius,android
+# kivy 版本必须与本地实测一致(2.3.1),否则界面行为可能对不上
+requirements = python3,kivy==2.3.1,pyjnius,android
 
 orientation = portrait
 fullscreen = 0
